@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../database/db_helper.dart';
+import 'package:intl/intl.dart'; // Para formatear fechas
 
 class HistoryScreen extends StatefulWidget {
   @override
@@ -19,6 +20,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
     setState(() {
       _sales = DBHelper.fetchSales();
     });
+  }
+
+  String _formatDate(String date) {
+    try {
+      final parsedDate = DateTime.parse(date);
+      return DateFormat('d MMM yyyy, hh:mm a').format(parsedDate);
+    } catch (e) {
+      return date; // Si hay un error, devolvemos el valor original.
+    }
   }
 
   Color _getStatusColor(String status) {
@@ -64,30 +74,66 @@ class _HistoryScreenState extends State<HistoryScreen> {
           } else {
             final sales = snapshot.data!;
             return ListView.builder(
+              padding: EdgeInsets.all(8.0),
               itemCount: sales.length,
               itemBuilder: (context, index) {
                 final sale = sales[index];
-                return ListTile(
-                  leading: Icon(
-                    _getStatusIcon(sale['status']),
-                    color: _getStatusColor(sale['status']),
+                return Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  title: Text(
-                    'Venta ${sale['id']}',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Total: \$${sale['total'].toStringAsFixed(2)}'),
-                      Text('Fecha: ${sale['date']}'),
-                    ],
-                  ),
-                  trailing: Text(
-                    sale['status'],
-                    style: TextStyle(
-                      color: _getStatusColor(sale['status']),
-                      fontWeight: FontWeight.bold,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Row(
+                      children: [
+                        // Ícono de estado
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: _getStatusColor(sale['status']),
+                          child: Icon(
+                            _getStatusIcon(sale['status']),
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        // Información de la venta
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Venta ${sale['id']}',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Total: \$${sale['total'].toStringAsFixed(2)}',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Fecha: ${_formatDate(sale['date'])}',
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Estado
+                        Text(
+                          sale['status'],
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: _getStatusColor(sale['status']),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );

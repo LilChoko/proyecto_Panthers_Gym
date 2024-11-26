@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:intl/intl.dart'; // Para formatear fechas
 import '../widgets/sales_modal.dart';
 import '../database/db_helper.dart';
 
@@ -21,21 +22,19 @@ class _PendingSalesScreenState extends State<PendingSalesScreen> {
 
   Future<void> _loadSalesFromDatabase() async {
     final sales = await DBHelper.fetchSales();
-    print('Ventas obtenidas de la base de datos: $sales'); // Depuración inicial
 
     Map<DateTime, List<Map<String, dynamic>>> events = {};
 
     for (var sale in sales) {
       final date = DateTime.parse(sale['date']);
-      final day = DateTime.utc(
-          date.year, date.month, date.day); // Normalizar fecha a UTC
+      final day = DateTime.utc(date.year, date.month, date.day);
 
       if (events[day] == null) {
         events[day] = [];
       }
 
       events[day]!.add({
-        'id': sale['id'], // ID necesario para actualizar estado
+        'id': sale['id'],
         'status': sale['status'],
         'title': 'Venta ${sale['id']}',
         'total': sale['total'],
@@ -44,13 +43,11 @@ class _PendingSalesScreenState extends State<PendingSalesScreen> {
 
     setState(() {
       _events = events;
-      print('Eventos agrupados por fecha: $_events'); // Confirmar agrupación
     });
   }
 
   List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
-    final normalizedDay =
-        DateTime.utc(day.year, day.month, day.day); // Normalizar fecha a UTC
+    final normalizedDay = DateTime.utc(day.year, day.month, day.day);
     return _events[normalizedDay] ?? [];
   }
 
@@ -65,6 +62,10 @@ class _PendingSalesScreenState extends State<PendingSalesScreen> {
       default:
         return Colors.grey;
     }
+  }
+
+  String _formatDate(DateTime date) {
+    return DateFormat('d MMM yyyy').format(date);
   }
 
   @override
@@ -85,11 +86,67 @@ class _PendingSalesScreenState extends State<PendingSalesScreen> {
             focusedDay: _focusedDay,
             firstDay: DateTime(2020),
             lastDay: DateTime(2050),
-            eventLoader: (day) {
-              final events = _getEventsForDay(day);
-              print('Eventos para el día $day: $events'); // Depuración
-              return events;
-            },
+            calendarStyle: CalendarStyle(
+              todayDecoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              selectedDecoration: BoxDecoration(
+                color: Colors.blue,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blueAccent.withOpacity(0.5),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              markersMaxCount: 3,
+              markerDecoration: BoxDecoration(
+                color: Colors.purple,
+                shape: BoxShape.circle,
+              ),
+              outsideDaysVisible: false,
+            ),
+            headerStyle: HeaderStyle(
+              formatButtonVisible: true,
+              titleTextStyle: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              formatButtonDecoration: BoxDecoration(
+                color: Colors.blue,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              formatButtonTextStyle: TextStyle(
+                color: Colors.white,
+              ),
+            ),
+            calendarBuilders: CalendarBuilders(
+              markerBuilder: (context, date, events) {
+                if (events.isEmpty) return SizedBox();
+
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: events.take(3).map((event) {
+                    if (event is Map<String, dynamic> &&
+                        event['status'] != null) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _getDotColor(event['status']!),
+                          shape: BoxShape.circle,
+                        ),
+                      );
+                    }
+                    return SizedBox(); // Si el evento no tiene la clave 'status', retorna un espacio vacío
+                  }).toList(),
+                );
+              },
+            ),
+            eventLoader: _getEventsForDay,
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
                 _selectedDay = selectedDay;
@@ -98,57 +155,45 @@ class _PendingSalesScreenState extends State<PendingSalesScreen> {
               showSalesModal(
                 context,
                 _getEventsForDay(selectedDay),
-                _loadSalesFromDatabase, // Callback para recargar los datos
+                _loadSalesFromDatabase,
               );
             },
-            calendarStyle: CalendarStyle(
-              todayDecoration: BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
-              ),
-              markerDecoration: BoxDecoration(
-                shape: BoxShape.circle,
-              ),
-            ),
-            calendarBuilders: CalendarBuilders(
-              markerBuilder: (context, date, events) {
-                if (events.isEmpty) return SizedBox();
-
-                // Limitar los eventos a mostrar
-                final maxMarkers = 3;
-                final displayEvents = events.take(maxMarkers).toList();
-                final remainingCount = events.length - displayEvents.length;
-
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ...displayEvents.map((event) {
-                      if (event is Map<String, dynamic> &&
-                          event['status'] != null) {
-                        return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: _getDotColor(event['status'] as String),
-                            shape: BoxShape.circle,
+            selectedDayPredicate: (day) => isSameDay(day, _selectedDay),
+          ),
+          Expanded(
+            child: _getEventsForDay(_selectedDay).isEmpty
+                ? Center(child: Text('No hay eventos para este día.'))
+                : ListView.builder(
+                    padding: EdgeInsets.all(8.0),
+                    itemCount: _getEventsForDay(_selectedDay).length,
+                    itemBuilder: (context, index) {
+                      final event = _getEventsForDay(_selectedDay)[index];
+                      return Card(
+                        elevation: 4,
+                        margin: EdgeInsets.symmetric(vertical: 6),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: _getDotColor(event['status']),
+                            child: Icon(
+                              Icons.event,
+                              color: Colors.white,
+                            ),
                           ),
-                        );
-                      }
-                      return SizedBox();
-                    }).toList(),
-                    if (remainingCount > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 2),
-                        child: Text(
-                          '+$remainingCount',
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                          title: Text(
+                            event['title'],
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            'Total: \$${event['total'].toStringAsFixed(2)}',
+                          ),
+                          trailing: Text(
+                            _formatDate(_selectedDay),
+                            style: TextStyle(color: Colors.grey),
+                          ),
                         ),
-                      ),
-                  ],
-                );
-              },
-            ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

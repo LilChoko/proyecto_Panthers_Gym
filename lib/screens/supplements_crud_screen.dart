@@ -131,37 +131,88 @@ class _SupplementsCrudScreenState extends State<SupplementsCrudScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Inventario')),
-      body: supplements.isEmpty
-          ? Center(child: Text('No hay suplementos registrados.'))
-          : ListView.builder(
-              itemCount: supplements.length,
-              itemBuilder: (context, index) {
-                final supplement = supplements[index];
-                return ListTile(
-                  leading: supplement['image'] != null
-                      ? Image.file(File(supplement['image']), width: 50)
-                      : Icon(Icons.image, size: 50),
-                  title: Text(supplement['name']),
-                  subtitle: Text('Precio: \$${supplement['price']}'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.edit),
-                        onPressed: () {
-                          _showSupplementForm(supplement: supplement);
-                        },
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.delete),
-                        onPressed: () => _deleteSupplement(supplement['id']),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+      appBar: AppBar(
+        title: Text('Inventario'),
+      ),
+      body: Container(
+        padding: EdgeInsets.all(16.0),
+        child: supplements.isEmpty
+            ? Center(
+                child: Text(
+                  'No hay suplementos registrados.',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+              )
+            : GridView.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.8,
+                ),
+                itemCount: supplements.length,
+                itemBuilder: (context, index) {
+                  final supplement = supplements[index];
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: supplement['image'] != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(12)),
+                                  child: Image.file(
+                                    File(supplement['image']),
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : Icon(Icons.image, size: 50, color: Colors.grey),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                supplement['name'],
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Precio: \$${supplement['price']}',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () {
+                                _showSupplementForm(supplement: supplement);
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete, color: Colors.red),
+                              onPressed: () =>
+                                  _deleteSupplement(supplement['id']),
+                            ),
+                          ],
+                        )
+                      ],
+                    ),
+                  );
+                },
+              ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showSupplementForm(),
         child: Icon(Icons.add),
